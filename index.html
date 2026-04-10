@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pro Bill Splitter v2</title>
+<title>Bill Splitter v2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -233,6 +233,8 @@ details[open] .api-section summary::before {
       <li>Navigate to <strong>API Keys</strong> and create a new key</li>
       <li>Paste it below — it stays in this tab only and is never stored anywhere</li>
     </ol>
+    <p><strong>Running locally?</strong> Due to browser security rules, you need to run the included <code>proxy.js</code> first:<br>
+    <code>node proxy.js</code> → then open <a href="http://localhost:3000/bill_splitter.html">http://localhost:3000/bill_splitter.html</a></p>
     <div class="api-key-row">
       <input type="password" id="apiKeyInput" placeholder="sk-ant-…" autocomplete="off">
       <button onclick="saveApiKey()">Save Key</button>
@@ -444,13 +446,16 @@ async function handleReceiptUpload(event) {
       reader.readAsDataURL(file);
     });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.protocol === "file:";
+    const apiUrl = isLocal ? "http://localhost:3000/v1/messages" : "https://api.anthropic.com/v1/messages";
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
+        ...(isLocal ? {} : { "anthropic-dangerous-direct-browser-access": "true" })
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
