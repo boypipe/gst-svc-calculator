@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Bill Splitter v2</title>
+<title>Pro Bill Splitter v2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -84,69 +84,6 @@ button {
   align-items: center;
 }
 
-.api-section {
-  background: #fffbea;
-  border: 1px solid #f0d060;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-top: 16px;
-  font-size: 13px;
-}
-.api-section summary {
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  color: #7a5c00;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.api-section summary::before {
-  content: "▶";
-  font-size: 10px;
-  transition: transform 0.2s;
-}
-details[open] .api-section summary::before {
-  transform: rotate(90deg);
-}
-.api-section .api-body {
-  margin-top: 12px;
-  color: #444;
-  line-height: 1.6;
-}
-.api-section .api-body ol {
-  margin: 8px 0 12px 18px;
-  padding: 0;
-}
-.api-section .api-key-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.api-section .api-key-row input {
-  flex: 1;
-  min-width: 200px;
-  font-family: monospace;
-  font-size: 13px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-.api-section .api-key-row button {
-  background: #7a5c00;
-  font-size: 13px;
-  padding: 8px 14px;
-}
-.api-status {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #888;
-}
-.api-status.ok { color: #28a745; font-weight: bold; }
-.api-status.err { color: #dc3545; }
-
 .upload-zone {
   border: 2px dashed #aaa;
   border-radius: 8px;
@@ -222,28 +159,6 @@ details[open] .api-section summary::before {
   <label><input type="checkbox" id="applyGst" checked> Apply</label>
 </div>
 
-<!-- API Key Section -->
-<details>
-<div class="api-section">
-  <summary>🤖 Enable AI Receipt Scanning</summary>
-  <div class="api-body">
-    <p>To use the <strong>Upload Receipt to Auto-fill</strong> feature, you need a free Anthropic API key:</p>
-    <ol>
-      <li>Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and sign up</li>
-      <li>Navigate to <strong>API Keys</strong> and create a new key</li>
-      <li>Paste it below — it stays in this tab only and is never stored anywhere</li>
-    </ol>
-    <p><strong>Running locally?</strong> Due to browser security rules, you need to run the included <code>proxy.js</code> first:<br>
-    <code>node proxy.js</code> → then open <a href="http://localhost:3000/bill_splitter.html">http://localhost:3000/bill_splitter.html</a></p>
-    <div class="api-key-row">
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-…" autocomplete="off">
-      <button onclick="saveApiKey()">Save Key</button>
-    </div>
-    <div class="api-status" id="apiStatus">No key set — receipt scanning disabled</div>
-  </div>
-</div>
-</details>
-
 <div class="main">
 
   <div class="items">
@@ -273,25 +188,6 @@ let people = [];
 let items = [];
 // checkboxState[itemIndex][personName] = bool
 let checkboxState = [];
-let apiKey = "";
-
-function saveApiKey() {
-  const val = document.getElementById("apiKeyInput").value.trim();
-  if (!val.startsWith("sk-ant-")) {
-    setApiStatus("⚠ That doesn't look like a valid Anthropic key (should start with sk-ant-)", "err");
-    return;
-  }
-  apiKey = val;
-  setApiStatus("✓ Key saved — receipt scanning enabled!", "ok");
-  document.getElementById("uploadZone").style.opacity = "1";
-  document.getElementById("uploadZone").style.pointerEvents = "auto";
-}
-
-function setApiStatus(msg, type) {
-  const el = document.getElementById("apiStatus");
-  el.textContent = msg;
-  el.className = "api-status " + (type || "");
-}
 
 function saveCheckboxState() {
   items.forEach((item, index) => {
@@ -428,12 +324,6 @@ async function handleReceiptUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  if (!apiKey) {
-    alert("Please set your Anthropic API key first (click 'Enable AI Receipt Scanning' above).");
-    event.target.value = "";
-    return;
-  }
-
   const zone = document.getElementById("uploadZone");
   zone.textContent = "⏳ Reading receipt…";
   zone.className = "upload-zone loading";
@@ -446,17 +336,14 @@ async function handleReceiptUpload(event) {
       reader.readAsDataURL(file);
     });
 
-    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.protocol === "file:";
-    const apiUrl = isLocal ? "http://localhost:3000/v1/messages" : "https://api.anthropic.com/v1/messages";
+    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    const apiUrl = isLocal
+      ? "http://localhost:3000/v1/messages"
+      : "https://ant-vercel-api-6g11.vercel.app/api/messages";
 
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        ...(isLocal ? {} : { "anthropic-dangerous-direct-browser-access": "true" })
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1000,
