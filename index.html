@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pro Bill Splitter v2</title>
+<title>Bill Splitter v2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -345,30 +345,16 @@ async function handleReceiptUpload(event) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 }
-            },
-            {
-              type: "text",
-              text: `Extract all individual line items from this receipt. Return ONLY a JSON array with no markdown, no explanation, no extra text. Format: [{"name": "Item Name", "price": 1.23}, ...]. Do NOT include subtotals, taxes, service charge, tips, discounts, or the grand total — only individual food/drink/product items with their prices.`
-            }
-          ]
-        }]
+        image: { mimeType: file.type || "image/jpeg", data: base64 },
+        prompt: `Extract all individual line items from this receipt. Return ONLY a JSON array with no markdown, no explanation, no extra text. Format: [{"name": "Item Name", "price": 1.23}, ...]. Do NOT include subtotals, taxes, service charge, tips, discounts, or the grand total — only individual food/drink/product items with their prices.`
       })
     });
 
     const data = await response.json();
     console.log("API response:", JSON.stringify(data));
-    if (!response.ok) {
-      throw new Error(JSON.stringify(data));
-    }
-    const text = data.content.map(b => b.text || "").join("");
+    if (!response.ok) throw new Error(JSON.stringify(data));
+
+    const text = data.text || "";
     const clean = text.replace(/```json|```/g, "").trim();
     const extracted = JSON.parse(clean);
 
@@ -389,8 +375,8 @@ async function handleReceiptUpload(event) {
     }, 3000);
 
   } catch (err) {
-    console.error("Full error:", err);
-    zone.textContent = "⚠ Error: " + err.message;
+    console.error(err);
+    zone.textContent = "⚠ Could not read receipt — try again";
     zone.className = "upload-zone";
     setTimeout(() => {
       zone.textContent = "📷 Upload Receipt to Auto-fill";
