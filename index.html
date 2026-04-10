@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pro Bill Splitter v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  margin: 0;
+  background: #f4f6f8;
+}
+
+.container {
+  padding: 20px;
+}
+
+.top {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+input, button {
+  padding: 10px;
+  font-size: 14px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.items, .result {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 3fr auto;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.people-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.summary {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.person {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.items-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.api-section {
+  background: #fffbea;
+  border: 1px solid #f0d060;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.api-section summary {
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  color: #7a5c00;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.api-section summary::before {
+  content: "▶";
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+details[open] .api-section summary::before {
+  transform: rotate(90deg);
+}
+.api-section .api-body {
+  margin-top: 12px;
+  color: #444;
+  line-height: 1.6;
+}
+.api-section .api-body ol {
+  margin: 8px 0 12px 18px;
+  padding: 0;
+}
+.api-section .api-key-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.api-section .api-key-row input {
+  flex: 1;
+  min-width: 200px;
+  font-family: monospace;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.api-section .api-key-row button {
+  background: #7a5c00;
+  font-size: 13px;
+  padding: 8px 14px;
+}
+.api-status {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #888;
+}
+.api-status.ok { color: #28a745; font-weight: bold; }
+.api-status.err { color: #dc3545; }
+
+.upload-zone {
+  border: 2px dashed #aaa;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: #fafafa;
+  font-size: 13px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+.upload-zone:hover {
+  border-color: #007bff;
+  background: #eef5ff;
+}
+.upload-zone.loading {
+  border-color: #fd7e14;
+  background: #fff8f0;
+  color: #fd7e14;
+  cursor: wait;
+}
+.upload-zone.success {
+  border-color: #28a745;
+  background: #f0fff4;
+  color: #28a745;
+}
+#receiptInput { display: none; }
+
+.del-btn {
+  background: #dc3545;
+  padding: 5px 9px;
+  font-size: 12px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.calc-btn {
+  background: #28a745;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .main { grid-template-columns: 1fr; }
+  .item { grid-template-columns: 1fr 1fr; }
+  .item > .people-checkboxes,
+  .item > .del-btn { grid-column: 1 / -1; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>Pro Bill Splitter</h2>
+
+<div class="top">
+  <input id="names" placeholder="Names (A,B,C)">
+  <button onclick="updateNames()">Update Names</button>
+  <button onclick="addItem()">+ Add Item</button>
+</div>
+
+<!-- SVC + GST -->
+<div class="top" style="margin-top: 16px;">
+  <label>SVC %</label>
+  <input id="svc" type="number" value="10" style="width:60px">
+  <label><input type="checkbox" id="applySvc" checked> Apply</label>
+
+  <label>GST %</label>
+  <input id="gst" type="number" value="9" style="width:60px">
+  <label><input type="checkbox" id="applyGst" checked> Apply</label>
+</div>
+
+<!-- API Key Section -->
+<details>
+<div class="api-section">
+  <summary>🤖 Enable AI Receipt Scanning</summary>
+  <div class="api-body">
+    <p>To use the <strong>Upload Receipt to Auto-fill</strong> feature, you need a free Anthropic API key:</p>
+    <ol>
+      <li>Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and sign up</li>
+      <li>Navigate to <strong>API Keys</strong> and create a new key</li>
+      <li>Paste it below — it stays in this tab only and is never stored anywhere</li>
+    </ol>
+    <div class="api-key-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-…" autocomplete="off">
+      <button onclick="saveApiKey()">Save Key</button>
+    </div>
+    <div class="api-status" id="apiStatus">No key set — receipt scanning disabled</div>
+  </div>
+</div>
+</details>
+
+<div class="main">
+
+  <div class="items">
+    <h3>Items</h3>
+    <div id="items"></div>
+
+    <div class="items-footer">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('receiptInput').click()">
+        📷 Upload Receipt to Auto-fill
+      </div>
+      <input type="file" id="receiptInput" accept="image/*" onchange="handleReceiptUpload(event)">
+      <button class="calc-btn" onclick="calculate()">✓ Calculate</button>
+    </div>
+  </div>
+
+  <div class="result">
+    <h3>Result</h3>
+    <div id="result"></div>
+    <div class="summary" id="summary"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+let people = [];
+let items = [];
+// checkboxState[itemIndex][personName] = bool
+let checkboxState = [];
+let apiKey = "";
+
+function saveApiKey() {
+  const val = document.getElementById("apiKeyInput").value.trim();
+  if (!val.startsWith("sk-ant-")) {
+    setApiStatus("⚠ That doesn't look like a valid Anthropic key (should start with sk-ant-)", "err");
+    return;
+  }
+  apiKey = val;
+  setApiStatus("✓ Key saved — receipt scanning enabled!", "ok");
+  document.getElementById("uploadZone").style.opacity = "1";
+  document.getElementById("uploadZone").style.pointerEvents = "auto";
+}
+
+function setApiStatus(msg, type) {
+  const el = document.getElementById("apiStatus");
+  el.textContent = msg;
+  el.className = "api-status " + (type || "");
+}
+
+function saveCheckboxState() {
+  items.forEach((item, index) => {
+    if (!checkboxState[index]) checkboxState[index] = {};
+    document.querySelectorAll(`.split-${index}`).forEach(cb => {
+      checkboxState[index][cb.value] = cb.checked;
+    });
+  });
+}
+
+function updateNames() {
+  saveCheckboxState();
+  people = document.getElementById("names").value
+    .split(",").map(p => p.trim()).filter(p => p);
+  renderItems();
+}
+
+function addItem() {
+  saveCheckboxState();
+  items.push({ name: "", price: "" });
+  checkboxState.push({});
+  renderItems();
+}
+
+function deleteItem(index) {
+  saveCheckboxState();
+  items.splice(index, 1);
+  checkboxState.splice(index, 1);
+  renderItems();
+}
+
+function renderItems() {
+  const container = document.getElementById("items");
+  container.innerHTML = "";
+
+  items.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "item";
+
+    // Name input
+    const nameInput = document.createElement("input");
+    nameInput.placeholder = "Item";
+    nameInput.value = item.name;
+    nameInput.addEventListener("change", () => { items[index].name = nameInput.value; });
+
+    // Price input
+    const priceInput = document.createElement("input");
+    priceInput.type = "number";
+    priceInput.step = "0.01";
+    priceInput.placeholder = "Price";
+    priceInput.value = item.price;
+    priceInput.addEventListener("change", () => { items[index].price = priceInput.value; });
+
+    // Checkboxes — restore saved state
+    const checkboxDiv = document.createElement("div");
+    checkboxDiv.className = "people-checkboxes";
+    people.forEach(p => {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = `split-${index}`;
+      cb.value = p;
+      if (checkboxState[index] && checkboxState[index][p] !== undefined) {
+        cb.checked = checkboxState[index][p];
+      }
+      label.appendChild(cb);
+      label.append(" " + p);
+      checkboxDiv.appendChild(label);
+    });
+
+    // Delete button
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✕";
+    delBtn.className = "del-btn";
+    delBtn.onclick = () => deleteItem(index);
+
+    div.appendChild(nameInput);
+    div.appendChild(priceInput);
+    div.appendChild(checkboxDiv);
+    div.appendChild(delBtn);
+    container.appendChild(div);
+  });
+}
+
+function calculate() {
+  saveCheckboxState();
+
+  let totals = {};
+  people.forEach(p => totals[p] = 0);
+  let subtotal = 0;
+
+  items.forEach((item, index) => {
+    const price = parseFloat(item.price);
+    if (!price) return;
+    subtotal += price;
+
+    const selected = Array.from(
+      document.querySelectorAll(`.split-${index}:checked`)
+    ).map(cb => cb.value);
+
+    if (selected.length > 0) {
+      const split = price / selected.length;
+      selected.forEach(p => totals[p] += split);
+    }
+  });
+
+  const svcPercent = parseFloat(document.getElementById("svc").value) || 0;
+  const gstPercent = parseFloat(document.getElementById("gst").value) || 0;
+  const svc = document.getElementById("applySvc").checked ? subtotal * svcPercent / 100 : 0;
+  const gst = document.getElementById("applyGst").checked ? (subtotal + svc) * gstPercent / 100 : 0;
+  const finalTotal = subtotal + svc + gst;
+
+  const totalBefore = Object.values(totals).reduce((a, b) => a + b, 0);
+  for (let p in totals) {
+    if (totalBefore > 0) totals[p] = totals[p] / totalBefore * finalTotal;
+  }
+
+  let html = "";
+  for (let p in totals) {
+    html += `<div class="person"><span>${p}</span><span>$${totals[p].toFixed(2)}</span></div>`;
+  }
+  document.getElementById("result").innerHTML = html;
+  document.getElementById("summary").innerHTML = `
+    Subtotal: $${subtotal.toFixed(2)}<br>
+    SVC: $${svc.toFixed(2)}<br>
+    GST: $${gst.toFixed(2)}<br>
+    <b>Total: $${finalTotal.toFixed(2)}</b>
+  `;
+}
+
+// ── Receipt image → AI item extraction ───────────────────────────────────────
+
+async function handleReceiptUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!apiKey) {
+    alert("Please set your Anthropic API key first (click 'Enable AI Receipt Scanning' above).");
+    event.target.value = "";
+    return;
+  }
+
+  const zone = document.getElementById("uploadZone");
+  zone.textContent = "⏳ Reading receipt…";
+  zone.className = "upload-zone loading";
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result.split(",")[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 }
+            },
+            {
+              type: "text",
+              text: `Extract all individual line items from this receipt. Return ONLY a JSON array with no markdown, no explanation, no extra text. Format: [{"name": "Item Name", "price": 1.23}, ...]. Do NOT include subtotals, taxes, service charge, tips, discounts, or the grand total — only individual food/drink/product items with their prices.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(b => b.text || "").join("");
+    const clean = text.replace(/```json|```/g, "").trim();
+    const extracted = JSON.parse(clean);
+
+    if (!Array.isArray(extracted) || extracted.length === 0) throw new Error("No items found");
+
+    saveCheckboxState();
+    extracted.forEach(ei => {
+      items.push({ name: ei.name || "", price: ei.price != null ? String(ei.price) : "" });
+      checkboxState.push({});
+    });
+    renderItems();
+
+    zone.textContent = `✓ Added ${extracted.length} items`;
+    zone.className = "upload-zone success";
+    setTimeout(() => {
+      zone.textContent = "📷 Upload Receipt to Auto-fill";
+      zone.className = "upload-zone";
+    }, 3000);
+
+  } catch (err) {
+    console.error(err);
+    zone.textContent = "⚠ Could not read receipt — try again";
+    zone.className = "upload-zone";
+    setTimeout(() => {
+      zone.textContent = "📷 Upload Receipt to Auto-fill";
+      zone.className = "upload-zone";
+    }, 3500);
+  }
+
+  event.target.value = "";
+}
+</script>
+
+</body>
+</html>
