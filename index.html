@@ -364,6 +364,10 @@ async function handleReceiptUpload(event) {
     });
 
     const data = await response.json();
+    console.log("API response:", JSON.stringify(data));
+    if (!response.ok) {
+      throw new Error(JSON.stringify(data));
+    }
     const text = data.content.map(b => b.text || "").join("");
     const clean = text.replace(/```json|```/g, "").trim();
     const extracted = JSON.parse(clean);
@@ -385,8 +389,8 @@ async function handleReceiptUpload(event) {
     }, 3000);
 
   } catch (err) {
-    console.error(err);
-    zone.textContent = "⚠ Could not read receipt — try again";
+    console.error("Full error:", err);
+    zone.textContent = "⚠ Error: " + err.message;
     zone.className = "upload-zone";
     setTimeout(() => {
       zone.textContent = "📷 Upload Receipt to Auto-fill";
