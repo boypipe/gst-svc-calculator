@@ -368,7 +368,10 @@ async function handleReceiptUpload(event) {
 
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "my-simple-key"
+      },
       body: JSON.stringify({
         image: { mimeType: file.type || "image/jpeg", data: base64 },
         prompt: `Extract all individual line items from this receipt. Return ONLY a JSON array with no markdown, no explanation, no extra text. Format: [{"name": "Item Name", "price": 1.23}, ...]. Do NOT include subtotals, taxes, service charge, tips, discounts, or the grand total — only individual food/drink/product items with their prices.`
@@ -381,7 +384,18 @@ async function handleReceiptUpload(event) {
 
     const text = data.text || "";
     const clean = text.replace(/```json|```/g, "").trim();
-    const extracted = JSON.parse(clean);
+    
+    if (!clean) {
+      throw new Error("Empty AI response");
+    }
+    
+    let extracted;
+    try {
+      extracted = JSON.parse(clean);
+    } catch (e) {
+      console.error("Bad JSON from AI:", clean);
+      throw new Error("AI returned invalid format");
+    }
 
     if (!Array.isArray(extracted) || extracted.length === 0) throw new Error("No items found");
 
