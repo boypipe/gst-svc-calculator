@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pro Bill Splitter v2</title>
+<title>Bill Splitter v2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%2328a745' stroke='%231a7a30' stroke-width='3'/><circle cx='50' cy='50' r='38' fill='none' stroke='%23ffffff' stroke-width='2' opacity='0.4'/><text x='50' y='62' font-family='Arial' font-weight='bold' font-size='52' fill='white' text-anchor='middle'>$</text></svg>">
 
@@ -305,21 +305,16 @@ function calculate() {
   const svcPercent = parseFloat(document.getElementById("svc").value) || 0;
   const gstPercent = parseFloat(document.getElementById("gst").value) || 0;
   const discount = parseFloat(document.getElementById("discount").value) || 0;
-  const svc = document.getElementById("applySvc").checked ? subtotal * svcPercent / 100 : 0;
-  const gst = document.getElementById("applyGst").checked ? (subtotal + svc) * gstPercent / 100 : 0;
-  const finalTotal = Math.max(0, subtotal + svc + gst - discount);
+
+  // Apply discount before SVC and GST
+  const discountedSubtotal = Math.max(0, subtotal - discount);
+  const svc = document.getElementById("applySvc").checked ? discountedSubtotal * svcPercent / 100 : 0;
+  const gst = document.getElementById("applyGst").checked ? (discountedSubtotal + svc) * gstPercent / 100 : 0;
+  const finalTotal = discountedSubtotal + svc + gst;
 
   const totalBefore = Object.values(totals).reduce((a, b) => a + b, 0);
   for (let p in totals) {
     if (totalBefore > 0) totals[p] = totals[p] / totalBefore * finalTotal;
-  }
-
-  // Split discount equally among all people
-  if (discount > 0 && people.length > 0) {
-    const discountPerPerson = discount / people.length;
-    for (let p in totals) {
-      totals[p] = Math.max(0, totals[p] - discountPerPerson);
-    }
   }
 
   let html = "";
@@ -329,9 +324,10 @@ function calculate() {
   document.getElementById("result").innerHTML = html;
   document.getElementById("summary").innerHTML = `
     Subtotal: $${subtotal.toFixed(2)}<br>
+    ${discount > 0 ? `Discount: -$${discount.toFixed(2)}<br>` : ""}
+    ${discount > 0 ? `After discount: $${discountedSubtotal.toFixed(2)}<br>` : ""}
     SVC: $${svc.toFixed(2)}<br>
     GST: $${gst.toFixed(2)}<br>
-    ${discount > 0 ? `Discount: -$${discount.toFixed(2)}<br>` : ""}
     <b>Total: $${finalTotal.toFixed(2)}</b>
   `;
 }
