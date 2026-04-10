@@ -339,7 +339,7 @@ async function handleReceiptUpload(event) {
     const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
     const apiUrl = isLocal
       ? "http://localhost:3000/v1/messages"
-      : "https://ant-vercel-api-6g11-l3g2seqm2-boypipes-projects.vercel.app/api/messages";
+      : "https://ant-vercel-api-6g11.vercel.app/api/messages";
 
     const response = await fetch(apiUrl, {
       method: "POST",
