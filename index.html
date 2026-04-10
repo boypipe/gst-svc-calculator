@@ -141,7 +141,7 @@ button {
 <body>
 <div class="container">
 
-<h2>Pro Bill Splitter</h2>
+<h2>Bill Splitter</h2>
 
 <div class="top">
   <input id="names" placeholder="Names (A,B,C)">
@@ -306,28 +306,39 @@ function calculate() {
   const gstPercent = parseFloat(document.getElementById("gst").value) || 0;
   const discount = parseFloat(document.getElementById("discount").value) || 0;
 
-  // Apply discount before SVC and GST
-  const discountedSubtotal = Math.max(0, subtotal - discount);
-  const svc = document.getElementById("applySvc").checked ? discountedSubtotal * svcPercent / 100 : 0;
-  const gst = document.getElementById("applyGst").checked ? (discountedSubtotal + svc) * gstPercent / 100 : 0;
-  const finalTotal = discountedSubtotal + svc + gst;
+  // Each person gets an equal share of the discount
+  const numPeople = people.length;
+  const discountPerPerson = (discount > 0 && numPeople > 0) ? discount / numPeople : 0;
 
-  const totalBefore = Object.values(totals).reduce((a, b) => a + b, 0);
+  // Apply discount per person, then apply SVC + GST on their discounted amount
+  const svcMult = document.getElementById("applySvc").checked ? svcPercent / 100 : 0;
+  const gstMult = document.getElementById("applyGst").checked ? gstPercent / 100 : 0;
+
+  let finalTotals = {};
+  let totalSvc = 0, totalGst = 0, totalDiscount = 0;
+
   for (let p in totals) {
-    if (totalBefore > 0) totals[p] = totals[p] / totalBefore * finalTotal;
+    const discounted = Math.max(0, totals[p] - discountPerPerson);
+    const personSvc = discounted * svcMult;
+    const personGst = (discounted + personSvc) * gstMult;
+    finalTotals[p] = discounted + personSvc + personGst;
+    totalSvc += personSvc;
+    totalGst += personGst;
+    totalDiscount += Math.min(discountPerPerson, totals[p]);
   }
 
+  const finalTotal = Object.values(finalTotals).reduce((a, b) => a + b, 0);
+
   let html = "";
-  for (let p in totals) {
-    html += `<div class="person"><span>${p}</span><span>$${totals[p].toFixed(2)}</span></div>`;
+  for (let p in finalTotals) {
+    html += `<div class="person"><span>${p}</span><span>$${finalTotals[p].toFixed(2)}</span></div>`;
   }
   document.getElementById("result").innerHTML = html;
   document.getElementById("summary").innerHTML = `
     Subtotal: $${subtotal.toFixed(2)}<br>
-    ${discount > 0 ? `Discount: -$${discount.toFixed(2)}<br>` : ""}
-    ${discount > 0 ? `After discount: $${discountedSubtotal.toFixed(2)}<br>` : ""}
-    SVC: $${svc.toFixed(2)}<br>
-    GST: $${gst.toFixed(2)}<br>
+    ${discount > 0 ? `Discount: -$${totalDiscount.toFixed(2)} ($${discountPerPerson.toFixed(2)}/person)<br>` : ""}
+    SVC: $${totalSvc.toFixed(2)}<br>
+    GST: $${totalGst.toFixed(2)}<br>
     <b>Total: $${finalTotal.toFixed(2)}</b>
   `;
 }
